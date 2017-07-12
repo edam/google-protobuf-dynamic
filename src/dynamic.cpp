@@ -249,6 +249,14 @@ void Dynamic::map_package_or_prefix(pTHX_ const string &pb_package_or_prefix, bo
 
             map_enum(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
         }
+
+        for (int i = 0, max = file->service_count(); i < max; ++i) {
+            const ServiceDescriptor *descriptor = file->service(i);
+            if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
+                continue;
+
+            map_service(aTHX_ descriptor, perl_package + "::" + descriptor->name(), options);
+        }
     }
 }
 
@@ -327,6 +335,11 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
     copy_and_bind(aTHX_ "new", perl_package, mapper);
     copy_and_bind(aTHX_ "new_and_check", perl_package, mapper);
     copy_and_bind(aTHX_ "message_descriptor", perl_package, mapper);
+
+    // for Grpc::Client
+    copy_and_bind(aTHX_ "static_decode", "_static_decode", perl_package, mapper);
+    copy_and_bind(aTHX_ "encode", "pack", perl_package, mapper);
+    copy_and_bind(aTHX_ "decode", "unpack", perl_package, mapper);
 
     if (options.generic_extension_methods) {
         copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);
@@ -414,7 +427,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
     check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_enums.find(descriptor->full_name()) != mapped_enums.end())
-        croak("Message '%s' has already been mapped", descriptor->full_name().c_str());
+        croak("Enum '%s' has already been mapped", descriptor->full_name().c_str());
 
     const EnumDef *enum_def = def_builder.GetEnumDef(descriptor);
     EnumMapper *mapper = new EnumMapper(aTHX_ this, enum_def);
@@ -434,12 +447,45 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
     }
 }
 
+void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
+    check_package(aTHX_ perl_package, descriptor->full_name());
+    if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
+        croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
+
+    mapped_services.insert(descriptor->full_name());
+    used_packages.insert(perl_package);
+
+    HV *stash = gv_stashpvn(perl_package.data(), perl_package.size(), GV_ADD);
+
+    // TODO needs upb::ServiceDef
+    // copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
+
+    eval_pv(("package " + perl_package + ";\n" +
+             "use Grpc::Client::BaseStub;\n" +
+             "@ISA = qw(Grpc::Client::BaseStub);").c_str(), 1);
+
+    for (int i = 0, max = descriptor->method_count(); i < max; ++i) {
+        const MethodDescriptor *method = descriptor->method(i);
+        string full_method = "/" + descriptor->full_name() + "/" + method->name().c_str();
+        const Descriptor *input = method->input_type(), *output = method->output_type();
+        const MessageDef *input_def = def_builder.GetMessageDef(input);
+        const MessageDef *output_def = def_builder.GetMessageDef(output);
+        MethodMapper *mapper = new MethodMapper(aTHX_ this, full_method, input_def, output_def, method->client_streaming(), method->server_streaming());
+
+        copy_and_bind(aTHX_ "call_service_passthrough", method->name().c_str(), perl_package, mapper);
+
+        pending_methods.push_back(mapper);
+    }
+}
+
 void Dynamic::resolve_references() {
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->resolve_mappers();
     for (std::vector<Mapper *>::iterator it = pending.begin(), en = pending.end(); it != en; ++it)
         (*it)->create_encoder_decoder();
     pending.clear();
+    for (std::vector<MethodMapper *>::iterator it = pending_methods.begin(), en = pending_methods.end(); it != en; ++it)
+        (*it)->resolve_input_output();
 }
 
 const Mapper *Dynamic::find_mapper(const MessageDef *message_def) const {

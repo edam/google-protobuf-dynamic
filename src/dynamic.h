@@ -18,6 +18,7 @@
 namespace gpd {
 
 class Mapper;
+class MethodMapper;
 
 struct MappingOptions {
     enum AccessorStyle {
@@ -69,6 +70,7 @@ private:
     void map_message_recursive(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_message(pTHX_ const google::protobuf::Descriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void map_enum(pTHX_ const google::protobuf::EnumDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
+    void map_service(pTHX_ const google::protobuf::ServiceDescriptor *descriptor, const std::string &perl_package, const MappingOptions &options);
     void check_package(pTHX_ const std::string &perl_package, const std::string &pb_name);
 
     OverlaySourceTree overlay_source_tree;
@@ -80,8 +82,10 @@ private:
     STD_TR1::unordered_map<std::string, const Mapper *> descriptor_map;
     STD_TR1::unordered_set<std::string> used_packages;
     STD_TR1::unordered_set<std::string> mapped_enums;
+    STD_TR1::unordered_set<std::string> mapped_services;
     STD_TR1::unordered_set<const google::protobuf::FileDescriptor *> files;
     std::vector<Mapper *> pending;
+    std::vector<MethodMapper *> pending_methods;
 };
 
 };
