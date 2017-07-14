@@ -36,7 +36,7 @@ my $response = Helloworld::HelloReply->encode({
     message => "Hello, " . join('', map $_->get_name, @requests),
 });
 
-my $server_event = $server_call->startBatch(
+$server_call->startBatch(
     Grpc::Constants::GRPC_OP_SEND_INITIAL_METADATA() => {},
     Grpc::Constants::GRPC_OP_SEND_STATUS_FROM_SERVER() => {
         'metadata' => {},

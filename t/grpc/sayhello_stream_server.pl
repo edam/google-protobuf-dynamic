@@ -29,19 +29,24 @@ my $request_event = $server_call->startBatch(
     Grpc::Constants::GRPC_OP_RECV_MESSAGE() => 1,
 );
 my $request = Helloworld::HelloRequest->decode($request_event->{message});
-my $response = Helloworld::HelloReply->encode({
-    message => "Hello, " . $request->get_name,
-});
 
 $server_call->startBatch(
     Grpc::Constants::GRPC_OP_SEND_INITIAL_METADATA() => {},
+);
+for my $part ("Hello, ", split //, $request->get_name) {
+    $server_call->startBatch(
+        Grpc::Constants::GRPC_OP_SEND_MESSAGE() => {
+            message => Helloworld::HelloReply->encode({ message => $part }),
+        },
+    );
+}
+$server_call->startBatch(
     Grpc::Constants::GRPC_OP_SEND_STATUS_FROM_SERVER() => {
         'metadata' => {},
         'code' => Grpc::Constants::GRPC_STATUS_OK(),
         'details' => 'Everything good',
     },
     Grpc::Constants::GRPC_OP_RECV_CLOSE_ON_SERVER() => 1,
-    Grpc::Constants::GRPC_OP_SEND_MESSAGE() => { message => $response },
 );
 
 exit 0;
