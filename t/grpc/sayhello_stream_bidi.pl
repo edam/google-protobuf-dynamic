@@ -25,23 +25,34 @@ flush STDOUT;
 my $client_event = $server->requestCall();
 my $server_call = $client_event->{call};
 
-my $request_event = $server_call->startBatch(
-    Grpc::Constants::GRPC_OP_RECV_MESSAGE() => 1,
-);
-my $request = Helloworld::HelloRequest->decode($request_event->{message});
-my $response = Helloworld::HelloReply->encode({
-    message => "Hello, " . $request->get_name,
-});
-
 $server_call->startBatch(
     Grpc::Constants::GRPC_OP_SEND_INITIAL_METADATA() => {},
+);
+my @parts = ('Hello, ');
+for (;;) {
+    last if !@parts;
+    $server_call->startBatch(
+        Grpc::Constants::GRPC_OP_SEND_MESSAGE() => {
+            message => Helloworld::HelloReply->encode({ message => shift @parts }),
+        },
+    );
+    if (my $request_event = $server_call->startBatch(
+        Grpc::Constants::GRPC_OP_RECV_MESSAGE() => 1,
+    )) {
+        if (my $message = $request_event->{message}) {
+            my $decoded = Helloworld::HelloRequest->decode($request_event->{message});
+            push @parts, $decoded->get_name;
+        }
+    }
+}
+
+$server_call->startBatch(
     Grpc::Constants::GRPC_OP_SEND_STATUS_FROM_SERVER() => {
         'metadata' => {},
         'code' => Grpc::Constants::GRPC_STATUS_OK(),
         'details' => 'Everything good',
     },
     Grpc::Constants::GRPC_OP_RECV_CLOSE_ON_SERVER() => 1,
-    Grpc::Constants::GRPC_OP_SEND_MESSAGE() => { message => $response },
 );
 
 exit 0;

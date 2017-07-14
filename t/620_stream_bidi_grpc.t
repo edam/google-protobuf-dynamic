@@ -1,6 +1,6 @@
 use t::lib::GrpcClient;
 
-spawn_server('t/grpc/sayhello_stream_server.pl');
+spawn_server('t/grpc/sayhello_stream_bidi.pl');
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
 $d->load_file("grpc/greeter.proto");
@@ -13,11 +13,21 @@ my $greeter = Helloworld::Greeter->new(
     server_address,
     credentials => $credentials,
 );
-my $request = Helloworld::HelloRequest->new({
-    name => 'grpc-perl',
-});
-my $call = $greeter->SplitHello( argument => $request );
-my @responses = $call->responses;
+my $call = $greeter->WawingHello();
+my @chars = split //, 'grpc-perl';
+my @responses;
+
+for (;;) {
+    my $response = $call->read;
+    push @responses, $response if $response;
+    last if !$response && !@chars;
+    if (@chars) {
+        $call->write(Helloworld::HelloRequest->new({
+            name => shift @chars,
+        }));
+        $call->writesDone if !@chars;
+    }
+}
 
 is(scalar @responses, 10);
 is(join('', map $_->get_message, @responses), 'Hello, grpc-perl');

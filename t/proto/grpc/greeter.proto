@@ -8,6 +8,8 @@ service Greeter {
     rpc JoinedHello (stream HelloRequest) returns (HelloReply);
 
     rpc SplitHello (HelloRequest) returns (stream HelloReply);
+
+    rpc WawingHello (stream HelloRequest) returns (stream HelloReply);
 }
 
 message HelloRequest {

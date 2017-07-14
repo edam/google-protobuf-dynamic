@@ -8,7 +8,7 @@ use Grpc::XS;
 use Grpc::Constants;
 
 my $d = Google::ProtocolBuffers::Dynamic->new('t/proto');
-$d->load_file("grpc/service.proto");
+$d->load_file("grpc/greeter.proto");
 $d->map(
     { package => 'helloworld', prefix => 'Helloworld' },
 );
