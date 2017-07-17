@@ -427,7 +427,7 @@ BOOT:
     gpd::WarnContext::setup(aTHX);
 
 SV *
-call_service_passthrough(SV *self, ...)
+grpc_xs_call_service_passthrough(SV *self, ...)
   INIT:
     gpd::MethodMapper *method = (gpd::MethodMapper *) CvXSUBANY(cv).any_ptr;
   CODE:

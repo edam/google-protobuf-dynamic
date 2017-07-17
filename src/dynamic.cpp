@@ -460,6 +460,10 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     // TODO needs upb::ServiceDef
     // copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
 
+    map_service_grpc_xs(aTHX_ descriptor, perl_package, options);
+}
+
+void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
     eval_pv(("package " + perl_package + ";\n" +
              "use Grpc::Client::BaseStub;\n" +
              "@ISA = qw(Grpc::Client::BaseStub);").c_str(), 1);
@@ -472,7 +476,7 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
         const MessageDef *output_def = def_builder.GetMessageDef(output);
         MethodMapper *mapper = new MethodMapper(aTHX_ this, full_method, input_def, output_def, method->client_streaming(), method->server_streaming());
 
-        copy_and_bind(aTHX_ "call_service_passthrough", method->name().c_str(), perl_package, mapper);
+        copy_and_bind(aTHX_ "grpc_xs_call_service_passthrough", method->name().c_str(), perl_package, mapper);
 
         pending_methods.push_back(mapper);
     }
