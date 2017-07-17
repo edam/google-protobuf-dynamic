@@ -9,7 +9,7 @@ service Greeter {
 
     rpc SplitHello (HelloRequest) returns (stream HelloReply);
 
-    rpc WawingHello (stream HelloRequest) returns (stream HelloReply);
+    rpc WavingHello (stream HelloRequest) returns (stream HelloReply);
 }
 
 message HelloRequest {

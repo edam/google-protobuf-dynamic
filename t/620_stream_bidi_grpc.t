@@ -13,7 +13,7 @@ my $greeter = Helloworld::Greeter->new(
     server_address,
     credentials => $credentials,
 );
-my $call = $greeter->WawingHello();
+my $call = $greeter->WavingHello();
 my @chars = split //, 'grpc-perl';
 my @responses;
 
