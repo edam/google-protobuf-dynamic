@@ -28,6 +28,12 @@ struct MappingOptions {
         Plain = 4,
     };
 
+    enum ClientService {
+        Disable = 0,
+        Noop = 1,
+        GrpcXS = 2,
+    };
+
     bool use_bigints;
     bool check_required_fields;
     bool explicit_defaults;
@@ -36,6 +42,7 @@ struct MappingOptions {
     bool generic_extension_methods;
     bool implicit_maps;
     AccessorStyle accessor_style;
+    ClientService client_services;
 
     MappingOptions(pTHX_ SV *options_ref);
 };

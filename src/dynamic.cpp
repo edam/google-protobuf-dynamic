@@ -30,7 +30,8 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
         check_enum_values(true),
         generic_extension_methods(true),
         implicit_maps(false),
-        accessor_style(GetAndSet) {
+        accessor_style(GetAndSet),
+        client_services(Disable) {
     if (options_ref == NULL || !SvOK(options_ref))
         return;
     if (!SvROK(options_ref) || SvTYPE(SvRV(options_ref)) != SVt_PVHV)
@@ -64,6 +65,19 @@ MappingOptions::MappingOptions(pTHX_ SV *options_ref) :
             accessor_style = Plain;
         else
             croak("Invalid value '%s' for 'accessor_style' option", buf);
+    }
+
+    if (SV **value = hv_fetchs(options, "client_services", 0)) {
+        const char *buf = SvPV_nolen(*value);
+
+        if (strEQ(buf, "disable"))
+            client_services = Disable;
+        else if (strEQ(buf, "noop"))
+            client_services = Noop;
+        else if (strEQ(buf, "grpc_xs"))
+            client_services = GrpcXS;
+        else
+            croak("Invalid value '%s' for 'client_services' option", buf);
     }
 
 #undef BOOLEAN_OPTION
@@ -447,6 +461,9 @@ void Dynamic::map_enum(pTHX_ const EnumDescriptor *descriptor, const string &per
 }
 
 void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
+    if (options.client_services == MappingOptions::Disable)
+        return;
+
     check_package(aTHX_ perl_package, descriptor->full_name());
     if (mapped_services.find(descriptor->full_name()) != mapped_services.end())
         croak("Service '%s' has already been mapped", descriptor->full_name().c_str());
@@ -459,7 +476,16 @@ void Dynamic::map_service(pTHX_ const ServiceDescriptor *descriptor, const strin
     // TODO needs upb::ServiceDef
     // copy_and_bind(aTHX_ "service_descriptor", perl_package, mapper);
 
-    map_service_grpc_xs(aTHX_ descriptor, perl_package, options);
+    switch (options.client_services) {
+    case MappingOptions::Noop:
+        // intentionally do nothing
+        break;
+    case MappingOptions::GrpcXS:
+        map_service_grpc_xs(aTHX_ descriptor, perl_package, options);
+        break;
+    default:
+        croak("Unhandled client_service option %d", options.client_services);
+    }
 }
 
 void Dynamic::map_service_grpc_xs(pTHX_ const ServiceDescriptor *descriptor, const string &perl_package, const MappingOptions &options) {
