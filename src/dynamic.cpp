@@ -338,8 +338,7 @@ void Dynamic::map_message(pTHX_ const Descriptor *descriptor, const string &perl
 
     // for Grpc::Client
     copy_and_bind(aTHX_ "static_decode", "_static_decode", perl_package, mapper);
-    copy_and_bind(aTHX_ "encode", "pack", perl_package, mapper);
-    copy_and_bind(aTHX_ "decode", "unpack", perl_package, mapper);
+    copy_and_bind(aTHX_ "static_encode", "_static_encode", perl_package, mapper);
 
     if (options.generic_extension_methods) {
         copy_and_bind(aTHX_ "has_extension_field", "has_extension", perl_package, mapper);

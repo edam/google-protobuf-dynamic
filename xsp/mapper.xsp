@@ -117,6 +117,19 @@ encode(SV *klass_or_object, SV *ref = NULL)
   OUTPUT: RETVAL
 
 SV*
+static_encode(SV *ref)
+  INIT:
+    gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
+  CODE:
+    RETVAL = mapper->encode(ref);
+
+    if (!RETVAL) {
+        sv_2mortal(RETVAL);
+        croak("Serialization failed: %s", mapper->last_error_message());
+    }
+  OUTPUT: RETVAL
+
+SV*
 encode_json(SV *klass_or_object, SV *ref = NULL)
   INIT:
     gpd::Mapper *mapper = (gpd::Mapper *) CvXSUBANY(cv).any_ptr;
@@ -431,11 +444,13 @@ grpc_xs_call_service_passthrough(SV *self, ...)
   INIT:
     gpd::MethodMapper *method = (gpd::MethodMapper *) CvXSUBANY(cv).any_ptr;
   CODE:
-    EXTEND(SP, 11); // worst case
+    EXTEND(SP, 13); // worst case
     PUSHMARK(SP);
     PUSHs(self);
     PUSHs(method->method_name_key());
     PUSHs(method->method_name());
+    PUSHs(method->serialize_key());
+    PUSHs(method->serialize());
     PUSHs(method->deserialize_key());
     PUSHs(method->deserialize());
     for (int i = 1; i < items; i += 2) {

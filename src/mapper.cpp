@@ -2056,8 +2056,10 @@ MethodMapper::MethodMapper(pTHX_ Dynamic *_registry, const string &method, const
     registry->ref();
 
     method_name_key_sv = newSVpvs_share("method");
+    serialize_key_sv = newSVpvs_share("serialize");
     deserialize_key_sv = newSVpvs_share("deserialize");
     method_name_sv = newSVpv_share(method.c_str(), 0);
+    serialize_sv = NULL;
     deserialize_sv = NULL;
 
     const char *grpc_name;
@@ -2082,8 +2084,10 @@ MethodMapper::MethodMapper(pTHX_ Dynamic *_registry, const string &method, const
 
 MethodMapper::~MethodMapper() {
     SvREFCNT_dec(method_name_key_sv);
+    SvREFCNT_dec(serialize_key_sv);
     SvREFCNT_dec(deserialize_key_sv);
     SvREFCNT_dec(method_name_sv);
+    SvREFCNT_dec(serialize_sv);
     SvREFCNT_dec(deserialize_sv);
     SvREFCNT_dec(grpc_call_sv);
     // make sure this only goes away after inner destructors have completed
@@ -2093,6 +2097,16 @@ MethodMapper::~MethodMapper() {
 void MethodMapper::resolve_input_output() {
     const Mapper *request_mapper = registry->find_mapper(input_def);
     const Mapper *response_mapper = registry->find_mapper(output_def);
+
+    string request_encoder_name =
+        request_mapper->package_name()
+        + string("::_static_encode");
+    SV *encode = (SV *) get_cv(request_encoder_name.c_str(), 0);
+    if (encode == NULL)
+        croak("Unable to find GRPC encoder in package '%s' for message '%s'",
+              request_mapper->package_name(), request_mapper->full_name());
+    serialize_sv = newRV_inc(encode);
+
     string response_decoder_name =
         response_mapper->package_name()
         + string("::_static_decode");
