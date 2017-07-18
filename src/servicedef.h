@@ -1,6 +1,8 @@
 #ifndef _GPD_XS_DYNAMIC_SERVICE_DESC
 #define _GPD_XS_DYNAMIC_SERVICE_DESC
 
+#include <upb/def.h>
+
 #include <string>
 #include <vector>
 
